@@ -1,0 +1,61 @@
+class ProcessWebhookJob < ApplicationJob
+  queue_as :default
+
+  # Retry logic with exponential backoff
+  retry_on StandardError, wait: :exponentially_longer, attempts: 5
+
+  def perform(webhook_id)
+    webhook = Webhook.find(webhook_id)
+
+    # Mark as processing
+    webhook.update!(status: :processing)
+
+    Rails.logger.info "Processing webhook #{webhook.id}: #{webhook.event_type}"
+
+    # Parse payload
+    payload = JSON.parse(webhook.payload)
+
+    # Process based on event type
+    case webhook.event_type
+    when 'payment.succeeded'
+      process_payment(payload)
+    when 'order.shipped'
+      process_shipment(payload)
+    when 'test.event'
+      process_test(payload)
+    else
+      Rails.logger.warn "Unknown event type: #{webhook.event_type}"
+    end
+
+    # Mark as completed
+    webhook.update!(
+      status: :completed,
+      processed_at: Time.current
+    )
+
+    Rails.logger.info "Webhook #{webhook.id} processed successfully"
+
+  rescue => e
+    Rails.logger.error "Webhook #{webhook_id} processing failed: #{e.message}"
+    webhook.update!(status: :failed) if webhook
+    raise  # Re-raise to trigger retry
+  end
+
+  private
+
+  def process_payment(payload)
+    # In real app: update order, send confirmation email
+    Rails.logger.info "Payment processed: #{payload}"
+  end
+
+  def process_shipment(payload)
+    # In real app: update tracking, notify customer
+    Rails.logger.info "Shipment processed: #{payload}"
+  end
+
+  def process_test(payload)
+    # Simulate some work
+    sleep 2
+    Rails.logger.info "Test webhook processed: #{payload['message']}"
+  end
+end

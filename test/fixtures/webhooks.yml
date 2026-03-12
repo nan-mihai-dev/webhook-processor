@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  external_id: MyString
+  source: MyString
+  event_type: MyString
+  payload: 
+  status: MyString
+  processed_at: 2026-03-12 11:46:19
+
+two:
+  external_id: MyString
+  source: MyString
+  event_type: MyString
+  payload: 
+  status: MyString
+  processed_at: 2026-03-12 11:46:19
