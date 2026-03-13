@@ -1,30 +1,42 @@
 class WebhooksController < ApplicationController
-  # Don't need this in API mode - no CSRF protection
-  # skip_before_action :verify_authenticity_token  ← DELETE THIS LINE
-
   def create
-    # 1. Parse incoming webhook
+    # 1. Get raw request body (BEFORE Rails parses it)
+    raw_payload = request.raw_post
+    signature = request.headers['X-Webhook-Signature']
+
+    # 2. Verify signature
+    begin
+      WebhookSignatureVerifier.verify!(
+        payload: raw_payload,
+        signature: signature
+      )
+    rescue SecurityError => e
+      Rails.logger.error "Webhook signature verification failed: #{e.message}"
+      return render json: { error: 'Invalid signature' }, status: :unauthorized
+    end
+
+    # 3. Parse webhook data
     webhook_params = {
       external_id: params[:id] || SecureRandom.uuid,
       source: params[:source] || 'unknown',
       event_type: params[:event_type] || params[:type],
-      payload: request.body.read
+      payload: raw_payload
     }
 
-    # 2. Check for duplicate (idempotency)
+    # 4. Check for duplicate (idempotency)
     existing_webhook = Webhook.find_by(external_id: webhook_params[:external_id])
     if existing_webhook
       Rails.logger.info "Duplicate webhook received: #{webhook_params[:external_id]}"
       return render json: { status: 'accepted', message: 'Duplicate webhook' }, status: :ok
     end
 
-    # 3. Store webhook
+    # 5. Store webhook
     webhook = Webhook.create!(webhook_params)
 
-    # 4. Queue background job
+    # 6. Queue background job
     ProcessWebhookJob.perform_later(webhook.id)
 
-    # 5. Return 200 OK immediately
+    # 7. Return 200 OK immediately
     render json: {
       status: 'accepted',
       webhook_id: webhook.id
@@ -36,5 +48,40 @@ class WebhooksController < ApplicationController
   rescue => e
     Rails.logger.error "Webhook processing error: #{e.message}"
     render json: { error: 'Internal server error' }, status: :internal_server_error
+  end
+
+  def index
+    # List webhooks with filters
+    webhooks = Webhook.recent
+
+    # Filter by source if provided
+    webhooks = webhooks.by_source(params[:source]) if params[:source].present?
+
+    # Filter by status if provided
+    webhooks = webhooks.where(status: params[:status]) if params[:status].present?
+
+    # Paginate (20 per page)
+    page = params[:page]&.to_i || 1
+    per_page = 20
+    offset = (page - 1) * per_page
+
+    webhooks = webhooks.limit(per_page).offset(offset)
+
+    render json: {
+      webhooks: webhooks.as_json(except: [:created_at, :updated_at]),
+      page: page,
+      per_page: per_page
+    }
+  end
+
+  def show
+    webhook = Webhook.find(params[:id])
+
+    render json: {
+      webhook: webhook.as_json,
+      payload_parsed: JSON.parse(webhook.payload)
+    }
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'Webhook not found' }, status: :not_found
   end
 end
