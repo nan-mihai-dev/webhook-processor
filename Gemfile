@@ -48,3 +48,8 @@ group :development, :test do
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
 end
+
+gem "rspec-rails", "~> 8.0", :group => :development
+gem "factory_bot_rails", "~> 6.5", :group => :development
+gem "faker", "~> 3.6", :group => :development
+gem "test", "~> 1.0", :group => :development
