@@ -53,3 +53,5 @@ gem "rspec-rails", "~> 8.0", :group => :development
 gem "factory_bot_rails", "~> 6.5", :group => :development
 gem "faker", "~> 3.6", :group => :development
 gem "test", "~> 1.0", :group => :development
+
+gem "simplecov", "~> 0.22.0", :group => :test
