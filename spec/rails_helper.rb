@@ -47,6 +47,11 @@ RSpec.configure do |config|
 
   config.use_transactional_fixtures = true
 
+  config.before(:each, type: :request) do
+    redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://redis:6379/0')
+    redis.flushdb  # Clear Redis before each request test
+  end
+
   # You can uncomment this line to turn off ActiveRecord support entirely.
   # config.use_active_record = false
 

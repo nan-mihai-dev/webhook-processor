@@ -1,5 +1,18 @@
 class WebhooksController < ApplicationController
   def create
+    # 1. Rate limiting check FIRST
+    source = params[:source] || 'unknown'
+    rate_limiter = RateLimiter.new(source)
+
+    if rate_limiter.exceeded?
+      render json: {
+        error: "Source #{source} has exceeded rate limit. Try again later."
+      }, status: :too_many_requests
+      return
+    end
+
+    rate_limiter.increment!
+
     # 1. Get raw request body (BEFORE Rails parses it)
     raw_payload = request.raw_post
     signature = request.headers['X-Webhook-Signature']

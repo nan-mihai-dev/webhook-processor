@@ -55,3 +55,5 @@ gem "faker", "~> 3.6", :group => :development
 gem "test", "~> 1.0", :group => :development
 
 gem "simplecov", "~> 0.22.0", :group => :test
+
+gem "redis", "~> 5.4"
