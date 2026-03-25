@@ -34,7 +34,7 @@ class WebhooksController < ApplicationController
     webhook = Webhook.create!(webhook_params)
 
     # 6. Queue background job
-    ProcessWebhookJob.perform_later(webhook.id)
+    ProcessWebhookJob.perform_async(webhook.id)
 
     # 7. Return 200 OK immediately
     render json: {
@@ -81,6 +81,22 @@ class WebhooksController < ApplicationController
       webhook: webhook.as_json,
       payload_parsed: JSON.parse(webhook.payload)
     }
+  rescue ActiveRecord::RecordNotFound
+    render json: { error: 'Webhook not found' }, status: :not_found
+  end
+
+  def retry
+    webhook = Webhook.find(params[:id])
+
+    unless webhook.failed?
+      render json: { error: 'Can only retry failed webhooks' }, status: :unprocessable_entity
+      return
+    end
+
+    webhook.update!(status: :pending, processed_at: nil)
+    ProcessWebhookJob.perform_async(webhook.id)
+
+    render json: { status: 'retrying', webhook_id: webhook.id }, status: :ok
   rescue ActiveRecord::RecordNotFound
     render json: { error: 'Webhook not found' }, status: :not_found
   end

@@ -6,7 +6,6 @@
           1,
           1,
           null,
-          null,
           1,
           null,
           1,
@@ -49,30 +48,16 @@
           1,
           null,
           1,
-          null,
           1,
           null,
           null,
           1,
-          null,
           1,
           null,
           null,
           1,
-          null,
           3,
           3,
-          null
-        ]
-      },
-      "/app/app/jobs/application_job.rb": {
-        "lines": [
-          1,
-          null,
-          null,
-          null,
-          null,
-          null,
           null
         ]
       },
@@ -101,7 +86,7 @@
           1,
           null,
           1,
-          19,
+          24,
           null,
           null
         ]
@@ -237,6 +222,22 @@
           null,
           null,
           0,
+          null,
+          null,
+          1,
+          6,
+          null,
+          5,
+          2,
+          2,
+          null,
+          null,
+          3,
+          3,
+          null,
+          3,
+          null,
+          1,
           null
         ]
       },
@@ -245,6 +246,18 @@
           1,
           null
         ]
+      },
+      "/app/app/jobs/application_job.rb": {
+        "lines": [
+          0,
+          null,
+          null,
+          null,
+          null,
+          null,
+          0
+        ],
+        "branches": {}
       },
       "/app/app/mailers/application_mailer.rb": {
         "lines": [
@@ -256,6 +269,6 @@
         "branches": {}
       }
     },
-    "timestamp": 1773863368
+    "timestamp": 1774457519
   }
 }

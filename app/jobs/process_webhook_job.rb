@@ -1,8 +1,7 @@
-class ProcessWebhookJob < ApplicationJob
-  queue_as :default
+class ProcessWebhookJob
+  include Sidekiq::Job
 
-  # Retry logic with exponential backoff
-  retry_on StandardError, wait: :exponentially_longer, attempts: 5
+  sidekiq_options queue: :default, retry: 5, backtrace: true
 
   def perform(webhook_id)
     webhook = Webhook.find(webhook_id)
@@ -44,17 +43,14 @@ class ProcessWebhookJob < ApplicationJob
   private
 
   def process_payment(payload)
-    # In real app: update order, send confirmation email
     Rails.logger.info "Payment processed: #{payload}"
   end
 
   def process_shipment(payload)
-    # In real app: update tracking, notify customer
     Rails.logger.info "Shipment processed: #{payload}"
   end
 
   def process_test(payload)
-    # Simulate some work
     sleep 2
     Rails.logger.info "Test webhook processed: #{payload['message']}"
   end
