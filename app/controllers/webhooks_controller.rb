@@ -1,6 +1,6 @@
 class WebhooksController < ApplicationController
   def create
-    # 1. Rate limiting check FIRST
+    # 1. Rate limiting check
     source = params[:source] || 'unknown'
     rate_limiter = RateLimiter.new(source)
 
@@ -13,7 +13,7 @@ class WebhooksController < ApplicationController
 
     rate_limiter.increment!
 
-    # 1. Get raw request body (BEFORE Rails parses it)
+    # 1. Get raw request body
     raw_payload = request.raw_post
     signature = request.headers['X-Webhook-Signature']
 
@@ -31,7 +31,7 @@ class WebhooksController < ApplicationController
     # 3. Parse webhook data
     webhook_params = {
       external_id: params[:id] || SecureRandom.uuid,
-      source: params[:source] || 'unknown',
+      source: source,
       event_type: params[:event_type] || params[:type],
       payload: raw_payload
     }
