@@ -306,29 +306,8 @@
           730,
           null
         ]
-      },
-      "/app/app/jobs/application_job.rb": {
-        "lines": [
-          0,
-          null,
-          null,
-          null,
-          null,
-          null,
-          0
-        ],
-        "branches": {}
-      },
-      "/app/app/mailers/application_mailer.rb": {
-        "lines": [
-          0,
-          0,
-          0,
-          0
-        ],
-        "branches": {}
       }
     },
-    "timestamp": 1774462865
+    "timestamp": 1775582114
   }
 }

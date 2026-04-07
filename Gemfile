@@ -20,6 +20,7 @@ group :development, :test do
   gem "bundler-audit", require: false
   gem "brakeman", require: false
   gem "rspec-rails", "~> 8.0"
+  gem "bullet"
 end
 
 group :development do

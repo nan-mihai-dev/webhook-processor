@@ -57,7 +57,7 @@ class WebhooksController < ApplicationController
 
   rescue ActiveRecord::RecordInvalid => e
     Rails.logger.error "Webhook creation failed: #{e.message}"
-    render json: { error: 'Invalid webhook data' }, status: :unprocessable_entity
+    render json: { error: 'Invalid webhook data' }, status: :unprocessable_content
   rescue => e
     Rails.logger.error "Webhook processing error: #{e.message}"
     render json: { error: 'Internal server error' }, status: :internal_server_error
@@ -102,7 +102,7 @@ class WebhooksController < ApplicationController
     webhook = Webhook.find(params[:id])
 
     unless webhook.failed?
-      render json: { error: 'Can only retry failed webhooks' }, status: :unprocessable_entity
+      render json: { error: 'Can only retry failed webhooks' }, status: :unprocessable_content
       return
     end
 

@@ -16,9 +16,15 @@ class Webhook < ApplicationRecord
 
   # Scopes
   scope :recent, -> { order(created_at: :desc) }
+  scope :pending_or_processing, -> { where(status: [:pending, :processing]) }
+  scope :failed_for_retry, -> { where(status: :failed) }
   scope :by_source, -> (source) { where(source: source) }
 
   private
+
+  def self.retryable
+    failed_for_retry.recent.limit(100)
+  end
 
   def set_default_status
     self.status ||= 'pending'  # Use string

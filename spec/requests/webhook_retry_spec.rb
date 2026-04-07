@@ -34,7 +34,7 @@ RSpec.describe 'Webhook Retry API', type: :request do
       it 'returns 422 Unprocessable Entity' do
         post "/webhooks/#{webhook.id}/retry"
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:unprocessable_content)
       end
 
       it 'returns error message' do
