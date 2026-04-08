@@ -1,8 +1,17 @@
 namespace :webhook do
   desc "Generate HMAC signature for testing"
   task :generate_signature, [:payload] => :environment do |t, args|
-    # Better default payload with event_type
-    payload = args[:payload] || '{"id":"evt_test_123","source":"stripe","event_type":"payment.succeeded","amount":5000}'
+    unique_id = "evt_test_#{Time.now.to_i}_#{SecureRandom.hex(4)}"
+
+    default_payload = {
+      id: unique_id,
+      source: "stripe",
+      event_type: "payment.succeeded",
+      amount: 5000,
+      timestamp: Time.now.to_i
+    }.to_json
+
+    payload = args[:payload] || default_payload
     secret = ENV['WEBHOOK_SECRET']
 
     signature = OpenSSL::HMAC.hexdigest('SHA256', secret, payload)
@@ -11,7 +20,7 @@ namespace :webhook do
     puts "Webhook Signature Generator"
     puts "="*60
     puts "\nPayload:"
-    puts payload
+    puts JSON.pretty_generate(JSON.parse(payload))
     puts "\nSecret:"
     puts secret
     puts "\nSignature:"

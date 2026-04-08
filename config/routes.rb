@@ -1,5 +1,8 @@
 Rails.application.routes.draw do
   resources :webhooks, only: [:index, :show, :create] do
+    collection do
+      get :stats
+    end
     member do
       post :retry
     end

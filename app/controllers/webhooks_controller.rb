@@ -117,4 +117,13 @@ class WebhooksController < ApplicationController
   rescue ActiveRecord::RecordNotFound
     render json: { error: 'Webhook not found' }, status: :not_found
   end
+
+  def stats
+    render json: {
+      by_status: Webhook.stats_by_status,
+      by_source: Webhook.stats_by_source,
+      total: Webhook.count,
+      cached_at: Time.current
+    }
+  end
 end
