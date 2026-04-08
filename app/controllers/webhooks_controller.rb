@@ -4,64 +4,33 @@ class WebhooksController < ApplicationController
   skip_before_action :authenticate_request, only: [:create]
 
   def create
-    # 1. Rate limiting check
-    source = params[:source] || 'unknown'
-    rate_limiter = RateLimiter.new(source)
-
-    if rate_limiter.exceeded?
-      render json: {
-        error: "Source #{source} has exceeded rate limit. Try again later."
-      }, status: :too_many_requests
-      return
+    rate_checker = RateLimitChecker.new(params[:source])
+    unless rate_checker.call
+      return render json: { error: rate_checker.error }, status: :too_many_requests
     end
 
-    rate_limiter.increment!
+    signature_validator = WebhookSignatureValidator.new(
+      payload: request.raw_post,
+      signature: request.headers['X-Webhook-Signature']
+    )
 
-    # Get raw request body
-    raw_payload = request.raw_post
-    signature = request.headers['X-Webhook-Signature']
-
-    # Verify signature
-    begin
-      WebhookSignatureVerifier.verify!(
-        payload: raw_payload,
-        signature: signature
-      )
-    rescue SecurityError => e
-      Rails.logger.error "Webhook signature verification failed: #{e.message}"
-      return render json: { error: 'Invalid signature' }, status: :unauthorized
+    unless signature_validator.call
+      return render json: { error: signature_validator.error }, status: :unauthorized
     end
 
-    # Parse webhook data
-    webhook_params = {
+    creator = WebhookCreator.new(
       external_id: params[:id] || SecureRandom.uuid,
-      source: source,
+      source: params[:source] || 'unknown',
       event_type: params[:event_type] || params[:type],
-      payload: raw_payload
-    }
+      payload: request.raw_post
+    ).call
 
-    # Check for duplicate (idempotency)
-    existing_webhook = Webhook.find_by(external_id: webhook_params[:external_id])
-    if existing_webhook
-      Rails.logger.info "Duplicate webhook received: #{webhook_params[:external_id]}"
-      return render json: { status: 'accepted', message: 'Duplicate webhook' }, status: :ok
+    if creator.success?
+      render json: creator.response, status: :ok
+    else
+      render json: creator.response, status: :unprocessable_content
     end
 
-    # Store webhook
-    webhook = Webhook.create!(webhook_params)
-
-    # Queue background job
-    ProcessWebhookJob.perform_async(webhook.id)
-
-    # Return 200 OK immediately
-    render json: {
-      status: 'accepted',
-      webhook_id: webhook.id
-    }, status: :ok
-
-  rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "Webhook creation failed: #{e.message}"
-    render json: { error: 'Invalid webhook data' }, status: :unprocessable_content
   rescue => e
     Rails.logger.error "Webhook processing error: #{e.message}"
     render json: { error: 'Internal server error' }, status: :internal_server_error
