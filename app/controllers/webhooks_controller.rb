@@ -1,4 +1,8 @@
 class WebhooksController < ApplicationController
+  include Authenticable
+
+  skip_before_action :authenticate_request, only: [:create]
+
   def create
     # 1. Rate limiting check
     source = params[:source] || 'unknown'
@@ -13,11 +17,11 @@ class WebhooksController < ApplicationController
 
     rate_limiter.increment!
 
-    # 1. Get raw request body
+    # Get raw request body
     raw_payload = request.raw_post
     signature = request.headers['X-Webhook-Signature']
 
-    # 2. Verify signature
+    # Verify signature
     begin
       WebhookSignatureVerifier.verify!(
         payload: raw_payload,
@@ -28,7 +32,7 @@ class WebhooksController < ApplicationController
       return render json: { error: 'Invalid signature' }, status: :unauthorized
     end
 
-    # 3. Parse webhook data
+    # Parse webhook data
     webhook_params = {
       external_id: params[:id] || SecureRandom.uuid,
       source: source,
@@ -36,20 +40,20 @@ class WebhooksController < ApplicationController
       payload: raw_payload
     }
 
-    # 4. Check for duplicate (idempotency)
+    # Check for duplicate (idempotency)
     existing_webhook = Webhook.find_by(external_id: webhook_params[:external_id])
     if existing_webhook
       Rails.logger.info "Duplicate webhook received: #{webhook_params[:external_id]}"
       return render json: { status: 'accepted', message: 'Duplicate webhook' }, status: :ok
     end
 
-    # 5. Store webhook
+    # Store webhook
     webhook = Webhook.create!(webhook_params)
 
-    # 6. Queue background job
+    # Queue background job
     ProcessWebhookJob.perform_async(webhook.id)
 
-    # 7. Return 200 OK immediately
+    # Return 200 OK immediately
     render json: {
       status: 'accepted',
       webhook_id: webhook.id

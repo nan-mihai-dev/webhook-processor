@@ -12,6 +12,9 @@ gem "redis", "~> 5.4"
 # Performance
 gem "bootsnap", require: false
 
+# Authentication
+gem "jwt"
+
 # Platform-specific
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
