@@ -6,6 +6,9 @@ class ProcessWebhookJob
   def perform(webhook_id)
     webhook = Webhook.find(webhook_id)
 
+    # Idempotency check
+    return if webhook.completed?
+
     # Mark as processing
     webhook.update!(status: :processing)
 
@@ -34,10 +37,14 @@ class ProcessWebhookJob
 
     Rails.logger.info "Webhook #{webhook.id} processed successfully"
 
+  rescue ActiveRecord::RecordNotFound
+    Rails.logger.warn "Webhook #{webhook_id} not found, skipping"
+    # No raise -> doesn't trigger retry
+
   rescue => e
     Rails.logger.error "Webhook #{webhook_id} processing failed: #{e.message}"
     webhook.update!(status: :failed) if webhook
-    raise  # Re-raise to trigger retry
+    raise # Trigger retry
   end
 
   private

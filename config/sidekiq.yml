@@ -1,0 +1,9 @@
+:queues:
+  - critical
+  - default
+  - low
+
+:max_retries: 5
+
+:dead_max_jobs: 10000
+:dead_timeout_in_seconds: 15552000  # 180 days

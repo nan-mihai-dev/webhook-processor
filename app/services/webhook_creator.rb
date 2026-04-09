@@ -1,5 +1,14 @@
+# app/services/webhook_creator.rb
 class WebhookCreator
   attr_reader :webhook, :errors
+
+  # Define which event types are critical
+  CRITICAL_EVENT_TYPES = [
+    'payment.succeeded',
+    'payment.failed',
+    'refund.created',
+    'charge.disputed'
+  ].freeze
 
   def initialize(external_id:, source:, event_type:, payload:)
     @external_id = external_id
@@ -7,7 +16,7 @@ class WebhookCreator
     @event_type = event_type
     @payload = payload
     @errors = []
-      @is_duplicate = false
+    @is_duplicate = false
   end
 
   def call
@@ -56,6 +65,16 @@ class WebhookCreator
   end
 
   def enqueue_job
-    ProcessWebhookJob.perform_async(@webhook.id)
+    if critical_event?
+      ProcessCriticalWebhookJob.perform_async(@webhook.id)
+      Rails.logger.info "! Enqueued CRITICAL webhook #{@webhook.id}: #{@event_type}"
+    else
+      ProcessWebhookJob.perform_async(@webhook.id)
+      Rails.logger.info "Enqueued webhook #{@webhook.id}: #{@event_type}"
+    end
+  end
+
+  def critical_event?
+    CRITICAL_EVENT_TYPES.include?(@event_type)
   end
 end
