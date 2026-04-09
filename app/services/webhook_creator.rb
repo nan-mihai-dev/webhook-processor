@@ -2,7 +2,6 @@
 class WebhookCreator
   attr_reader :webhook, :errors
 
-  # Define which event types are critical
   CRITICAL_EVENT_TYPES = [
     'payment.succeeded',
     'payment.failed',
