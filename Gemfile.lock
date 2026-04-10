@@ -243,6 +243,16 @@ GEM
       rspec-support (>= 3.13.0, < 5.0.0)
     rspec-support (3.13.7)
     securerandom (0.4.1)
+    sentry-rails (6.5.0)
+      railties (>= 5.2.0)
+      sentry-ruby (~> 6.5.0)
+    sentry-ruby (6.5.0)
+      bigdecimal
+      concurrent-ruby (~> 1.0, >= 1.0.2)
+      logger
+    sentry-sidekiq (6.5.0)
+      sentry-ruby (~> 6.5.0)
+      sidekiq (>= 5.0)
     sidekiq (7.3.9)
       base64
       connection_pool (>= 2.3.0)
@@ -295,6 +305,9 @@ DEPENDENCIES
   rails (~> 8.1.2)
   redis (~> 5.4)
   rspec-rails (~> 8.0)
+  sentry-rails
+  sentry-ruby
+  sentry-sidekiq
   sidekiq (~> 7.0)
   simplecov (~> 0.22.0)
   tzinfo-data

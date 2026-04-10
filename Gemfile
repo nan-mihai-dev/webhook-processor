@@ -12,6 +12,11 @@ gem "redis", "~> 5.4"
 # Performance
 gem "bootsnap", require: false
 
+# Error monitoring
+gem 'sentry-ruby'
+gem 'sentry-rails'
+gem 'sentry-sidekiq'
+
 # Authentication
 gem "jwt"
 

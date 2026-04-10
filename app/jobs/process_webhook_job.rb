@@ -4,6 +4,11 @@ class ProcessWebhookJob
   sidekiq_options queue: :default, retry: 5, backtrace: true
 
   def perform(webhook_id)
+    # Add Sentry context
+    Sentry.set_context('webhook', {
+      id: webhook_id,
+      queue: 'default'
+    })
     webhook = Webhook.find(webhook_id)
 
     # Idempotency check
@@ -43,6 +48,14 @@ class ProcessWebhookJob
 
   rescue => e
     Rails.logger.error "Webhook #{webhook_id} processing failed: #{e.message}"
+
+    # Capture to Sentry with extra context
+    Sentry.capture_exception(e, extra: {
+      webhook_id: webhook_id,
+      event_type: webhook&.event_type,
+      status: webhook&.status
+    })
+
     webhook.update!(status: :failed) if webhook
     raise # Trigger retry
   end
