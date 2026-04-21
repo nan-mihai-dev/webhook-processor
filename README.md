@@ -18,6 +18,7 @@ A production-ready webhook ingestion and processing API built with Ruby on Rails
 
 | Layer | Technology |
 |---|---|
+| Language | Ruby 3.4.2 |
 | Framework | Ruby on Rails 8.1 (API mode) |
 | Database | PostgreSQL 15 |
 | Background jobs | Sidekiq 7 |
@@ -36,8 +37,9 @@ A production-ready webhook ingestion and processing API built with Ruby on Rails
 ### Run with Docker
 
 ```bash
-git clone https://github.com/your-username/webhook-processor.git
+git clone https://github.com/nan-mihai-dev/webhook-processor.git
 cd webhook-processor
+cp .env.example .env   # fill in your values
 docker-compose up
 ```
 
@@ -50,19 +52,22 @@ The API will be available at `http://localhost:3000`.
 | `DATABASE_URL` | PostgreSQL connection string | `postgres://postgres:password@db:5432/webhook_processor_development` |
 | `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
 | `WEBHOOK_SECRET` | HMAC secret for signature verification | `whsec_your_secret_key` |
+| `API_KEY` | Secret used to obtain a JWT token via `POST /auth/token` | `a_long_random_string` |
 | `SENTRY_DSN` | Sentry project DSN (optional) | `https://...@sentry.io/...` |
 
 ## API Reference
 
 ### Authentication
 
-Most endpoints require a JWT bearer token. Obtain one first:
+Most endpoints require a JWT bearer token. Obtain one by sending your `API_KEY`:
 
-```
-POST /auth/token
+```bash
+curl -X POST http://localhost:3000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"api_key": "your_api_key_here"}'
 ```
 
-Then include it in subsequent requests:
+Then include the returned token in subsequent requests:
 ```
 Authorization: Bearer <token>
 ```
