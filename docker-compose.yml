@@ -43,7 +43,8 @@ services:
       DATABASE_URL: postgres://postgres:password@db:5432/webhook_processor_development
       REDIS_URL: redis://redis:6379/0
       WEBHOOK_SECRET: whsec_test_secret_key_12345
-      SENTRY_DSN: 'SENTRY_DSN_PLACEHOLDER'
+      API_KEY: local_dev_api_key
+      SENTRY_DSN: ''
 
 volumes:
   postgres_data:

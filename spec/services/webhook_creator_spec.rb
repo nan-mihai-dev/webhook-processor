@@ -19,10 +19,19 @@ RSpec.describe WebhookCreator do
         }.to change(Webhook, :count).by(1)
       end
 
-      it 'enqueues ProcessWebhookJob' do
-        allow(ProcessWebhookJob).to receive(:perform_async)
+      it 'enqueues ProcessCriticalWebhookJob for critical event types' do
+        allow(ProcessCriticalWebhookJob).to receive(:perform_async)
 
         creator = described_class.new(**params).call
+
+        expect(ProcessCriticalWebhookJob).to have_received(:perform_async)
+                                               .with(creator.webhook.id)
+      end
+
+      it 'enqueues ProcessWebhookJob for standard event types' do
+        allow(ProcessWebhookJob).to receive(:perform_async)
+
+        creator = described_class.new(**params.merge(event_type: 'order.shipped')).call
 
         expect(ProcessWebhookJob).to have_received(:perform_async)
                                        .with(creator.webhook.id)

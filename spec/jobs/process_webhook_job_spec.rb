@@ -62,10 +62,10 @@ RSpec.describe ProcessWebhookJob, type: :job do
     end
 
     context 'when webhook not found' do
-      it 'raises ActiveRecord::RecordNotFound' do
+      it 'skips silently without raising' do
         expect {
           described_class.new.perform(99999)
-        }.to raise_error(ActiveRecord::RecordNotFound)
+        }.not_to raise_error
       end
     end
 

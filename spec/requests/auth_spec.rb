@@ -2,15 +2,28 @@ require 'rails_helper'
 
 RSpec.describe "Authentication", type: :request do
   describe "POST /auth/token" do
+    before { ENV['API_KEY'] = 'test-secret-key' }
+    after  { ENV.delete('API_KEY') }
+
     context "with valid api_key" do
       it "returns a JWT token" do
-        post '/auth/token', params: { api_key: 'test-key' }
+        post '/auth/token', params: { api_key: 'test-secret-key' }
 
         expect(response).to have_http_status(:created)
         json = JSON.parse(response.body)
         expect(json['token']).to be_present
         expect(json['expires_in']).to eq('24 hours')
         expect(json['type']).to eq('Bearer')
+      end
+    end
+
+    context "with invalid api_key" do
+      it "returns unauthorized" do
+        post '/auth/token', params: { api_key: 'wrong-key' }
+
+        expect(response).to have_http_status(:unauthorized)
+        json = JSON.parse(response.body)
+        expect(json['error']).to eq('Invalid API key')
       end
     end
 

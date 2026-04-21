@@ -19,6 +19,9 @@
 /storage/*
 !/storage/.keep
 
+# Ignore test coverage reports.
+/coverage/
+
 # Ignore master key for decrypting credentials.
 /config/master.key
 
