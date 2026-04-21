@@ -47,29 +47,30 @@ The API will be available at `http://localhost:3000`.
 
 ### Environment Variables
 
-| Variable | Description | Example |
-|---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | `postgres://postgres:password@db:5432/webhook_processor_development` |
-| `REDIS_URL` | Redis connection string | `redis://redis:6379/0` |
-| `WEBHOOK_SECRET` | HMAC secret for signature verification | `whsec_your_secret_key` |
-| `API_KEY` | Secret used to obtain a JWT token via `POST /auth/token` | `a_long_random_string` |
-| `SENTRY_DSN` | Sentry project DSN (optional) | `https://...@sentry.io/...` |
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `WEBHOOK_SECRET` | HMAC secret used to verify incoming webhook signatures |
+| `API_KEY` | Secret that clients send to `/auth/token` to obtain a JWT |
+| `JWT_SECRET_KEY` | Secret used to sign and verify JWT tokens |
+| `SENTRY_DSN` | Sentry project DSN (optional) |
 
 ## API Reference
 
 ### Authentication
 
-Most endpoints require a JWT bearer token. Obtain one by sending your `API_KEY`:
+Webhook ingestion (`POST /api/v2/webhooks`) is public but requires a valid HMAC signature. All other endpoints require a JWT bearer token in the `Authorization` header:
 
-```bash
-curl -X POST http://localhost:3000/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{"api_key": "your_api_key_here"}'
-```
-
-Then include the returned token in subsequent requests:
 ```
 Authorization: Bearer <token>
+```
+
+Tokens are obtained via:
+
+```
+POST /auth/token
+Body: { "api_key": "your_api_key" }
 ```
 
 ---
@@ -82,7 +83,7 @@ Authorization: Bearer <token>
 POST /api/v2/webhooks
 ```
 
-No authentication required. Requires `X-Webhook-Signature` header (HMAC-SHA256 of the raw payload, signed with `WEBHOOK_SECRET`).
+No authentication required. Requires an `X-Webhook-Signature` header containing the HMAC-SHA256 of the raw request body, signed with `WEBHOOK_SECRET`.
 
 **Request body:**
 ```json
@@ -158,15 +159,51 @@ Each webhook is processed asynchronously. The job marks it `processing` on start
 - `refund.created`
 - `charge.disputed`
 
+## Testing the API Locally
+
+**1. Get a JWT token**
+
+```bash
+curl -X POST http://localhost:3000/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"api_key": "your_api_key_here"}'
+```
+
+Save the returned token — you'll use it in the steps below.
+
+**2. Send a test webhook**
+
+Incoming webhooks must be HMAC-signed. The included rake task handles this for you: it generates a payload, signs it, and prints the complete curl command to send it:
+
+```bash
+docker-compose exec web bundle exec rake webhook:generate_signature
+```
+
+Copy the curl command from the output and run it. The server will accept the request, create a webhook record, and queue it for background processing.
+
+**3. Verify the webhook was received**
+
+```bash
+curl http://localhost:3000/api/v2/webhooks \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+**4. Check processing stats**
+
+```bash
+curl http://localhost:3000/api/v2/webhooks/stats \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
 ## Running Tests
 
 ```bash
-bundle exec rspec
+docker-compose exec web bundle exec rspec
 ```
 
-Coverage report is generated in `coverage/index.html`.
-
 ## Security Checks
+
+Run locally (requires Ruby installed):
 
 ```bash
 bundle exec brakeman          # static analysis

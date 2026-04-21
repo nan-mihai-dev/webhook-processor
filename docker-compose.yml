@@ -28,6 +28,7 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:password@db:5432/webhook_processor_development
       REDIS_URL: redis://redis:6379/0
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
 
   web:
     build: .
@@ -42,9 +43,10 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:password@db:5432/webhook_processor_development
       REDIS_URL: redis://redis:6379/0
-      WEBHOOK_SECRET: whsec_test_secret_key_12345
-      API_KEY: local_dev_api_key
-      SENTRY_DSN: ''
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      API_KEY: ${API_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      SENTRY_DSN: ${SENTRY_DSN}
 
 volumes:
   postgres_data:
