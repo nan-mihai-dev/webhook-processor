@@ -1,6 +1,6 @@
 # Webhook Processor
 
-A production-ready webhook ingestion and processing API built with Ruby on Rails 8. Designed around reliability patterns: signature verification, idempotency, rate limiting, priority queues, and async processing via Sidekiq.
+A webhook ingestion and processing API built with Ruby on Rails 8. Designed around reliability patterns: signature verification, idempotency, rate limiting, priority queues, and async processing via Sidekiq.
 
 ## Features
 
@@ -28,6 +28,46 @@ A production-ready webhook ingestion and processing API built with Ruby on Rails
 | Testing | RSpec, SimpleCov |
 | Security audits | Brakeman, bundler-audit |
 
+## Live Demo
+
+**Base URL:** https://webhook-processor-qio0.onrender.com
+
+> Hosted on Render's free tier — the first request after inactivity may take ~50 seconds to respond.
+
+**1. Get a token**
+
+```bash
+export TOKEN=$(curl -s -X POST https://webhook-processor-qio0.onrender.com/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"api_key": "demo_api_key"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+```
+
+**2. Send a signed webhook**
+
+```bash
+PAYLOAD='{"id":"evt_demo_001","source":"stripe","event_type":"order.shipped","amount":5000}'
+SIG=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "demo_webhook_secret" | cut -d' ' -f2)
+
+curl -X POST https://webhook-processor-qio0.onrender.com/api/v2/webhooks \
+  -H "Content-Type: application/json" \
+  -H "X-Webhook-Signature: $SIG" \
+  -d "$PAYLOAD"
+```
+
+**3. List webhooks**
+
+```bash
+curl https://webhook-processor-qio0.onrender.com/api/v2/webhooks \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**4. Check stats**
+
+```bash
+curl https://webhook-processor-qio0.onrender.com/api/v2/webhooks/stats \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ## Getting Started
 
 ### Prerequisites
@@ -39,7 +79,7 @@ A production-ready webhook ingestion and processing API built with Ruby on Rails
 ```bash
 git clone https://github.com/nan-mihai-dev/webhook-processor.git
 cd webhook-processor
-cp .env.example .env   # fill in your values
+cp .env.example .env
 docker-compose up
 ```
 
@@ -164,35 +204,33 @@ Each webhook is processed asynchronously. The job marks it `processing` on start
 **1. Get a JWT token**
 
 ```bash
-curl -X POST http://localhost:3000/auth/token \
+export TOKEN=$(curl -s -X POST http://localhost:3000/auth/token \
   -H "Content-Type: application/json" \
-  -d '{"api_key": "your_api_key_here"}'
+  -d '{"api_key": "demo_api_key"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
 ```
-
-Save the returned token — you'll use it in the steps below.
 
 **2. Send a test webhook**
 
-Incoming webhooks must be HMAC-signed. The included rake task handles this for you: it generates a payload, signs it, and prints the complete curl command to send it:
+Incoming webhooks must be HMAC-signed. The included rake task generates a payload, signs it, and prints the complete curl command to send it:
 
 ```bash
 docker-compose exec web bundle exec rake webhook:generate_signature
 ```
 
-Copy the curl command from the output and run it. The server will accept the request, create a webhook record, and queue it for background processing.
+Copy the curl command from the output and run it.
 
 **3. Verify the webhook was received**
 
 ```bash
 curl http://localhost:3000/api/v2/webhooks \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 **4. Check processing stats**
 
 ```bash
 curl http://localhost:3000/api/v2/webhooks/stats \
-  -H "Authorization: Bearer YOUR_TOKEN"
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Running Tests
@@ -201,11 +239,3 @@ curl http://localhost:3000/api/v2/webhooks/stats \
 docker-compose exec web bundle exec rspec
 ```
 
-## Security Checks
-
-Run locally (requires Ruby installed):
-
-```bash
-bundle exec brakeman          # static analysis
-bundle exec bundler-audit     # dependency CVE check
-```
