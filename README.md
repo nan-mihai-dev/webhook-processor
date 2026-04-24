@@ -2,6 +2,18 @@
 
 A webhook ingestion and processing API built with Ruby on Rails 8. Designed around reliability patterns: signature verification, idempotency, rate limiting, priority queues, and async processing via Sidekiq.
 
+## Table of Contents
+
+- [Features](#features)
+- [Stack](#stack)
+- [Live Demo](#live-demo)
+- [Getting Started](#getting-started)
+- [API Reference](#api-reference)
+- [Webhook Lifecycle](#webhook-lifecycle)
+- [Testing the API Locally](#testing-the-api-locally)
+- [Running Tests](#running-tests)
+- [License](#license)
+
 ## Features
 
 - **HMAC signature validation** — rejects requests with invalid or missing signatures
@@ -45,7 +57,7 @@ export TOKEN=$(curl -s -X POST https://webhook-processor-qio0.onrender.com/auth/
 **2. Send a signed webhook**
 
 ```bash
-PAYLOAD='{"id":"evt_demo_001","source":"stripe","event_type":"order.shipped","amount":5000}'
+PAYLOAD="{\"id\":\"evt_$(date +%s)\",\"source\":\"stripe\",\"event_type\":\"order.shipped\",\"amount\":5000}"
 SIG=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "demo_webhook_secret" | cut -d' ' -f2)
 
 curl -X POST https://webhook-processor-qio0.onrender.com/api/v2/webhooks \
@@ -238,4 +250,8 @@ curl http://localhost:3000/api/v2/webhooks/stats \
 ```bash
 docker-compose exec web bundle exec rspec
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
 
