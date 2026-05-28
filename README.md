@@ -6,7 +6,6 @@ A webhook ingestion and processing API built with Ruby on Rails 8. Designed arou
 
 - [Features](#features)
 - [Stack](#stack)
-- [Live Demo](#live-demo)
 - [Getting Started](#getting-started)
 - [API Reference](#api-reference)
 - [Webhook Lifecycle](#webhook-lifecycle)
@@ -39,46 +38,6 @@ A webhook ingestion and processing API built with Ruby on Rails 8. Designed arou
 | Monitoring | Sentry |
 | Testing | RSpec, SimpleCov |
 | Security audits | Brakeman, bundler-audit |
-
-## Live Demo
-
-**Base URL:** https://webhook-processor-qio0.onrender.com
-
-> Hosted on Render's free tier — the first request after inactivity may take ~50 seconds to respond.
-
-**1. Get a token**
-
-```bash
-export TOKEN=$(curl -s -X POST https://webhook-processor-qio0.onrender.com/auth/token \
-  -H "Content-Type: application/json" \
-  -d '{"api_key": "demo_api_key"}' | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
-```
-
-**2. Send a signed webhook**
-
-```bash
-PAYLOAD="{\"id\":\"evt_$(date +%s)\",\"source\":\"stripe\",\"event_type\":\"order.shipped\",\"amount\":5000}"
-SIG=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "demo_webhook_secret" | cut -d' ' -f2)
-
-curl -X POST https://webhook-processor-qio0.onrender.com/api/v2/webhooks \
-  -H "Content-Type: application/json" \
-  -H "X-Webhook-Signature: $SIG" \
-  -d "$PAYLOAD"
-```
-
-**3. List webhooks**
-
-```bash
-curl https://webhook-processor-qio0.onrender.com/api/v2/webhooks \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**4. Check stats**
-
-```bash
-curl https://webhook-processor-qio0.onrender.com/api/v2/webhooks/stats \
-  -H "Authorization: Bearer $TOKEN"
-```
 
 ## Getting Started
 
