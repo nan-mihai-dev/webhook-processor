@@ -15,7 +15,7 @@ A webhook ingestion and processing API built with Ruby on Rails 8. Designed arou
 
 ## Features
 
-- **HMAC signature validation** — rejects requests with invalid or missing signatures
+- **HMAC signature validation** — rejects requests with invalid or missing signatures, using a constant-time comparison
 - **JWT authentication** — protects read/management endpoints
 - **Rate limiting** — 100 requests/hour per source, enforced via Redis
 - **Idempotency** — duplicate webhooks (same `external_id`) are detected and skipped
@@ -209,6 +209,8 @@ curl http://localhost:3000/api/v2/webhooks/stats \
 ```bash
 docker-compose exec web bundle exec rspec
 ```
+
+Some specs read `WEBHOOK_SECRET` from the environment. When running outside Docker, export it first (or `source .env`).
 
 ## License
 
