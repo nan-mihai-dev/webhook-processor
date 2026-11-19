@@ -14,5 +14,10 @@ module WebhookProcessor
     config.api_only = true
 
     config.active_job.queue_adapter = :sidekiq
+
+    # One Redis DB per environment: production 0, development 2 (test: see environments/test.rb).
+    config.x.redis_url = ENV.fetch("REDIS_URL") do
+      "redis://#{ENV.fetch('REDIS_HOST', 'redis')}:6379/#{Rails.env.production? ? 0 : 2}"
+    end
   end
 end

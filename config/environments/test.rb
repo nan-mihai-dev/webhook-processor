@@ -48,4 +48,8 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # Specs use their own Redis DB and deliberately ignore REDIS_URL, so a REDIS_URL exported
+  # in the shell or set by docker-compose can never point them at dev/prod data (rails_helper flushes it).
+  config.x.redis_url = ENV.fetch("TEST_REDIS_URL") { "redis://#{ENV.fetch('REDIS_HOST', 'redis')}:6379/1" }
 end

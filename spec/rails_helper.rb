@@ -6,6 +6,12 @@ ENV['RAILS_ENV'] ||= 'test'
 require_relative '../config/environment'
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
+# Specs roll back and flush data, so refuse to start unless pointed at a *_test database
+# (e.g. a DATABASE_URL exported in the shell would otherwise override config/database.yml).
+test_database = ActiveRecord::Base.connection_db_config.database.to_s
+unless test_database.end_with?('_test')
+  abort("Refusing to run specs against database #{test_database.inspect}: expected a *_test database.")
+end
 # Uncomment the line below in case you have `--require rails_helper` in the `.rspec` file
 # that will avoid rails generators crashing because migrations haven't been run yet
 # return unless Rails.env.test?
@@ -48,8 +54,8 @@ RSpec.configure do |config|
   config.use_transactional_fixtures = true
 
   config.before(:each, type: :request) do
-    redis = Redis.new(url: ENV['REDIS_URL'] || 'redis://redis:6379/0')
-    redis.flushdb  # Clear Redis before each request test
+    # Clear the test Redis DB (never REDIS_URL; see config/environments/test.rb) before each request test
+    Redis.new(url: Rails.configuration.x.redis_url).flushdb
   end
 
   # You can uncomment this line to turn off ActiveRecord support entirely.

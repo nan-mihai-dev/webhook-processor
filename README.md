@@ -60,8 +60,8 @@ The API will be available at `http://localhost:3000`.
 
 | Variable | Description |
 |---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `REDIS_URL` | Redis connection string |
+| `DATABASE_URL` | PostgreSQL connection string (production). Docker Compose sets `DB_HOST`, `DB_USERNAME` and `DB_PASSWORD` instead, so each environment keeps its own database |
+| `REDIS_URL` | Redis connection string (production). Locally, each environment uses its own Redis DB on `REDIS_HOST` (development 2, test 1) |
 | `WEBHOOK_SECRET` | HMAC secret used to verify incoming webhook signatures |
 | `API_KEY` | Secret that clients send to `/auth/token` to obtain a JWT |
 | `JWT_SECRET_KEY` | Secret used to sign and verify JWT tokens |
@@ -210,7 +210,9 @@ curl http://localhost:3000/api/v2/webhooks/stats \
 docker-compose exec web bundle exec rspec
 ```
 
-Some specs read `WEBHOOK_SECRET` from the environment. When running outside Docker, export it first (or `source .env`).
+Specs use their own `webhook_processor_test` database and Redis DB 1, so running them never touches development data. The suite refuses to start if it is pointed at a database whose name doesn't end in `_test`.
+
+Some specs read `WEBHOOK_SECRET` from the environment. Docker Compose passes it in; when running outside Docker, export it first.
 
 ## License
 
