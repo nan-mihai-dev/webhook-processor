@@ -7,6 +7,11 @@ RSpec.describe WebhookSignatureVerifier do
 
   describe '.verify!' do
 
+    it 'compares signatures with secure_compare' do
+      expect(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
+      described_class.verify!(payload: payload, signature: valid_signature, secret: secret)
+    end
+
     context 'with valid signature' do
       it 'returns true' do
         result = described_class.verify!(

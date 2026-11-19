@@ -25,7 +25,7 @@ class WebhookSignatureVerifier
   private
 
   def signatures_match?
-    computed_signature == @signature
+    ActiveSupport::SecurityUtils.secure_compare(computed_signature, @signature.to_s)
   end
 
   def computed_signature
