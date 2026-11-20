@@ -8,6 +8,10 @@ class Webhook < ApplicationRecord
 
   # A processing claim older than this is treated as abandoned (e.g. the worker was killed).
   CLAIM_TIMEOUT = 10.minutes
+  # A webhook pending longer than this has probably lost its job (enqueue failed after save).
+  PENDING_TIMEOUT = 5.minutes
+  # StuckWebhookSweeperJob re-enqueues a stuck webhook at most this many times, then marks it failed.
+  MAX_REENQUEUES = 5
 
   # Status enum
   enum :status, {
@@ -23,6 +27,17 @@ class Webhook < ApplicationRecord
   scope :pending_or_processing, -> { where(status: [:pending, :processing]) }
   scope :failed_for_retry, -> { where(status: :failed) }
   scope :by_source, -> (source) { where(source: source) }
+
+  # Webhooks that will not make progress on their own: pending with no recent change
+  # (updated_at = when it became pending or was last re-enqueued), or processing with
+  # an abandoned claim. Must match #stuck?.
+  scope :stuck, -> {
+    where(status: :pending, updated_at: ...PENDING_TIMEOUT.ago).or(
+      where(status: :processing).where(
+        'processing_started_at IS NULL OR processing_started_at < ?', CLAIM_TIMEOUT.ago
+      )
+    )
+  }
 
   def self.stats_by_status
     Rails.cache.fetch('webhook_stats_by_status', expires_in: 5.minutes) do
@@ -56,6 +71,30 @@ class Webhook < ApplicationRecord
 
       update!(status: :processing, processing_started_at: Time.current)
       true
+    end
+  end
+
+  # Instance version of the .stuck scope.
+  def stuck?
+    (pending? && updated_at < PENDING_TIMEOUT.ago) || (processing? && !claim_active?)
+  end
+
+  # Called by StuckWebhookSweeperJob for each webhook from .stuck. Re-checks under a row
+  # lock (a worker may have finished or claimed it since the scan) and returns:
+  #   :skipped    - no longer stuck
+  #   :gave_up    - re-enqueued MAX_REENQUEUES times already; now marked failed
+  #   :reenqueued - counter incremented; the caller enqueues the job after the lock commits
+  def requeue_if_stuck!
+    with_lock do
+      next :skipped unless stuck?
+
+      if reenqueue_count >= MAX_REENQUEUES
+        update!(status: :failed, last_error: "Gave up after #{MAX_REENQUEUES} re-enqueues (stuck in #{status})")
+        next :gave_up
+      end
+
+      update!(reenqueue_count: reenqueue_count + 1)
+      :reenqueued
     end
   end
 

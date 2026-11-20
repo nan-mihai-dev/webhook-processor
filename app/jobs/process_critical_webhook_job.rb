@@ -4,7 +4,7 @@ class ProcessCriticalWebhookJob
 
   sidekiq_options queue: :critical, retry: 10, backtrace: true
 
-  # Must cover every type in WebhookCreator::CRITICAL_EVENT_TYPES (enforced by a spec),
+  # Must cover every type in WebhookDispatcher::CRITICAL_EVENT_TYPES (enforced by a spec),
   # otherwise a critical event routed here would be marked ignored.
   EVENT_HANDLERS = {
     'payment.succeeded' => :process_payment,

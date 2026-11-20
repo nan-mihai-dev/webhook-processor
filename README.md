@@ -21,6 +21,7 @@ A webhook ingestion and processing API built with Ruby on Rails 8. Designed arou
 - **Idempotency** — duplicate deliveries (same `source` + `external_id`) are detected, including concurrent ones, and acknowledged with `200` without being processed twice
 - **Priority queues** — critical events (payments, refunds, disputes) are routed to a dedicated Sidekiq queue
 - **Automatic retries** — failed jobs retry up to 5 times with backoff
+- **Stuck-webhook recovery** — a scheduled sweeper re-enqueues webhooks that stalled without an error (lost job, killed worker), up to 5 times, then marks them failed and alerts Sentry
 - **Redis caching** — stats endpoints are cached to reduce DB load
 - **API versioning** — v1 and v2 namespaces with backward compatibility
 - **Error monitoring** — Sentry integration across Rails, Sidekiq, and background jobs
@@ -33,6 +34,7 @@ A webhook ingestion and processing API built with Ruby on Rails 8. Designed arou
 | Framework | Ruby on Rails 8.1 (API mode) |
 | Database | PostgreSQL 15 |
 | Background jobs | Sidekiq 7 |
+| Scheduler | sidekiq-cron |
 | Cache / Rate limiting | Redis 7 |
 | Auth | JWT |
 | Monitoring | Sentry |
@@ -170,6 +172,8 @@ Sidekiq delivers jobs at least once, and a webhook can also be re-enqueued by a 
 - `completed` and `ignored` webhooks are skipped.
 - A webhook claimed by another worker in the last 10 minutes is skipped. Older claims are treated as abandoned (for example, a killed worker) and taken over.
 - Otherwise the job marks it `processing` and releases the lock before doing the work.
+
+Every 5 minutes, `StuckWebhookSweeperJob` (scheduled with sidekiq-cron in `config/schedule.yml`) re-enqueues webhooks that won't make progress on their own: `pending` for more than 5 minutes (for example, the enqueue failed after the webhook was saved), or `processing` with a claim older than 10 minutes (for example, the worker was killed). Each webhook is re-enqueued at most 5 times. After that it is marked `failed`, the reason is saved in `last_error`, and one Sentry event is sent. Each run logs a single summary line.
 
 Unknown event types end as `ignored`, with a warning, rather than being reported as `completed`. Failed jobs are marked `failed` and re-raised so Sidekiq retries them. Errors are reported to Sentry by `sentry-sidekiq`, with the webhook's id, source and event type attached.
 

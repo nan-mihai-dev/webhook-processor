@@ -80,7 +80,7 @@ class WebhooksController < ApplicationController
     end
 
     webhook.update!(status: :pending, processed_at: nil)
-    ProcessWebhookJob.perform_async(webhook.id)
+    WebhookDispatcher.dispatch(webhook)
 
     render json: { status: 'retrying', webhook_id: webhook.id }, status: :ok
   rescue ActiveRecord::RecordNotFound

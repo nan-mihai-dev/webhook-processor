@@ -40,7 +40,7 @@ module WebhookProcessing
     log(:info, "Webhook #{webhook.id} completed")
   rescue StandardError => e
     log(:error, "Webhook #{webhook_id} processing failed: #{e.class}: #{e.message}")
-    webhook&.update!(status: :failed)
+    webhook&.update!(status: :failed, last_error: "#{e.class}: #{e.message}")
     raise # Sidekiq retries; sentry-sidekiq reports
   end
 

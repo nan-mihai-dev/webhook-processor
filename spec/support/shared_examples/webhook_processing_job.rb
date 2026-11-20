@@ -76,9 +76,10 @@ RSpec.shared_examples 'a webhook processing job' do |event_type:, handler:|
   context 'when the handler raises' do
     before { allow(job).to receive(handler).and_raise(RuntimeError, 'boom') }
 
-    it 'marks the webhook failed and re-raises so Sidekiq retries' do
+    it 'marks the webhook failed, records the error and re-raises so Sidekiq retries' do
       expect { job.perform(webhook.id) }.to raise_error(RuntimeError, 'boom')
       expect(webhook.reload).to be_failed
+      expect(webhook.last_error).to eq('RuntimeError: boom')
     end
 
     it 'leaves error reporting to sentry-sidekiq (no manual capture)' do

@@ -34,7 +34,14 @@ RSpec.describe 'Webhook Retry API', type: :request do
           expect(webhook.reload.status).to eq('pending')
         end
 
-        it 'enqueues ProcessWebhookJob' do
+        it 'enqueues the job for its event type (critical events go to the critical queue)' do
+          # factory default event_type is payment.succeeded, a critical event
+          expect(ProcessCriticalWebhookJob).to receive(:perform_async).with(webhook.id)
+          post "/webhooks/#{webhook.id}/retry", headers: auth_headers
+        end
+
+        it 'enqueues ProcessWebhookJob for non-critical event types' do
+          webhook.update!(event_type: 'order.shipped')
           expect(ProcessWebhookJob).to receive(:perform_async).with(webhook.id)
           post "/webhooks/#{webhook.id}/retry", headers: auth_headers
         end
