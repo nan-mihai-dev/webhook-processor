@@ -11,7 +11,8 @@ class WebhooksController < ApplicationController
 
     signature_validator = WebhookSignatureValidator.new(
       payload: request.raw_post,
-      signature: request.headers['X-Webhook-Signature']
+      signature: request.headers['X-Webhook-Signature'],
+      timestamp: request.headers['X-Webhook-Timestamp']
     )
 
     unless signature_validator.call

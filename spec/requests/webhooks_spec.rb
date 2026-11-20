@@ -113,6 +113,61 @@ RSpec.describe 'Webhooks API', type: :request do
       end
     end
 
+    context 'with signature v2 (X-Webhook-Timestamp)' do
+      # No "id": without replay protection a replay would be stored as a new webhook,
+      # because a missing id gets a fresh UUID and deduplication can't catch it.
+      let(:body) { { source: 'stripe', event_type: 'order.shipped', amount: 100 }.to_json }
+
+      def v2_headers(body, timestamp = Time.current.to_i.to_s)
+        {
+          'Content-Type' => 'application/json',
+          'X-Webhook-Timestamp' => timestamp,
+          'X-Webhook-Signature' => OpenSSL::HMAC.hexdigest('SHA256', secret, "#{timestamp}.#{body}")
+        }
+      end
+
+      it 'accepts a fresh signed request' do
+        expect { post '/webhooks', params: body, headers: v2_headers(body) }.to change(Webhook, :count).by(1)
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'rejects the same captured request replayed 6 minutes later' do
+        captured = v2_headers(body)
+        post '/webhooks', params: body, headers: captured
+        expect(response).to have_http_status(:ok)
+
+        travel_to(6.minutes.from_now) do
+          expect { post '/webhooks', params: body, headers: captured }.not_to change(Webhook, :count)
+        end
+        expect(response).to have_http_status(:unauthorized)
+        expect(JSON.parse(response.body)['error']).to eq('Invalid signature')
+      end
+
+      context 'when legacy signatures are disabled' do
+        around do |example|
+          config = Rails.configuration.x.webhooks
+          original = config.allow_legacy_signatures
+          config.allow_legacy_signatures = false
+          example.run
+        ensure
+          config.allow_legacy_signatures = original
+        end
+
+        it 'rejects a body-only (v1) signature' do
+          headers = { 'Content-Type' => 'application/json',
+                      'X-Webhook-Signature' => OpenSSL::HMAC.hexdigest('SHA256', secret, body) }
+
+          expect { post '/webhooks', params: body, headers: headers }.not_to change(Webhook, :count)
+          expect(response).to have_http_status(:unauthorized)
+        end
+
+        it 'still accepts a v2 signature' do
+          post '/webhooks', params: body, headers: v2_headers(body)
+          expect(response).to have_http_status(:ok)
+        end
+      end
+    end
+
     context 'with duplicate deliveries' do
       def deliver(body)
         post '/webhooks',

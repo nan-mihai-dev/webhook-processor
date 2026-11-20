@@ -15,7 +15,7 @@ A webhook ingestion and processing API built with Ruby on Rails 8. Designed arou
 
 ## Features
 
-- **HMAC signature validation** — rejects requests with invalid or missing signatures, using a constant-time comparison
+- **HMAC signature validation with replay protection** — the signature covers a timestamp and the raw body; requests that are tampered with, unsigned, or more than 5 minutes old are rejected (constant-time comparison)
 - **JWT authentication** — protects read/management endpoints
 - **Rate limiting** — 100 requests/hour per source, enforced via Redis
 - **Idempotency** — duplicate deliveries (same `source` + `external_id`) are detected, including concurrent ones, and acknowledged with `200` without being processed twice
@@ -65,6 +65,7 @@ The API will be available at `http://localhost:3000`.
 | `DATABASE_URL` | PostgreSQL connection string (production). Docker Compose sets `DB_HOST`, `DB_USERNAME` and `DB_PASSWORD` instead, so each environment keeps its own database |
 | `REDIS_URL` | Redis connection string (production). Locally, each environment uses its own Redis DB on `REDIS_HOST` (development 2, test 1) |
 | `WEBHOOK_SECRET` | HMAC secret used to verify incoming webhook signatures |
+| `WEBHOOK_ALLOW_LEGACY_SIGNATURES` | Accept the deprecated body-only signature format (no timestamp). Default `true`; set to `false` once all senders use timestamped signatures |
 | `API_KEY` | Secret that clients send to `/auth/token` to obtain a JWT |
 | `JWT_SECRET_KEY` | Secret used to sign and verify JWT tokens |
 | `SENTRY_DSN` | Sentry project DSN (optional) |
@@ -96,7 +97,16 @@ Body: { "api_key": "your_api_key" }
 POST /api/v2/webhooks
 ```
 
-No authentication required. Requires an `X-Webhook-Signature` header containing the HMAC-SHA256 of the raw request body, signed with `WEBHOOK_SECRET`.
+No authentication required. Requests must be signed with `WEBHOOK_SECRET`:
+
+| Header | Value |
+|---|---|
+| `X-Webhook-Timestamp` | Current Unix time in seconds |
+| `X-Webhook-Signature` | Hex HMAC-SHA256 of `"<timestamp>.<raw request body>"` |
+
+Requests whose timestamp is more than 5 minutes from the server's clock (in either direction) are rejected with `401`. Because the timestamp is part of the signed string, a captured request can't be replayed later.
+
+**Legacy format (deprecated):** an HMAC of the raw body only, with no timestamp header. It is still accepted while `WEBHOOK_ALLOW_LEGACY_SIGNATURES` is `true`, and each such request logs a deprecation warning. It offers no replay protection.
 
 **Request body:**
 ```json
@@ -201,7 +211,7 @@ Incoming webhooks must be HMAC-signed. The included rake task generates a payloa
 docker-compose exec web bundle exec rake webhook:generate_signature
 ```
 
-Copy the curl command from the output and run it.
+Copy the curl command from the output and run it within 5 minutes; after that, its timestamp is rejected as a possible replay.
 
 **3. Verify the webhook was received**
 
