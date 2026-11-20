@@ -159,10 +159,19 @@ Returns counts by status and by source. Cached for 5 minutes.
 
 ```
 Received → pending → processing → completed
-                               ↘ failed → (retry) → ...
+                          │     ↘ ignored   (no handler for the event type)
+                          ↘ failed → Sidekiq retry / POST .../retry → processing → ...
 ```
 
-Each webhook is processed asynchronously. The job marks it `processing` on start, then `completed` or `failed` on finish. Critical event types are routed to a separate high-priority Sidekiq queue.
+Each webhook is processed asynchronously. Critical event types are routed to a separate high-priority Sidekiq queue.
+
+Sidekiq delivers jobs at least once, and a webhook can also be re-enqueued by a retry, so every run first **claims** the webhook under a row lock (`SELECT ... FOR UPDATE`):
+
+- `completed` and `ignored` webhooks are skipped.
+- A webhook claimed by another worker in the last 10 minutes is skipped. Older claims are treated as abandoned (for example, a killed worker) and taken over.
+- Otherwise the job marks it `processing` and releases the lock before doing the work.
+
+Unknown event types end as `ignored`, with a warning, rather than being reported as `completed`. Failed jobs are marked `failed` and re-raised so Sidekiq retries them. Errors are reported to Sentry by `sentry-sidekiq`, with the webhook's id, source and event type attached.
 
 **Critical event types:**
 - `payment.succeeded`

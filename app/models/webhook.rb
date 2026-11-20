@@ -6,12 +6,16 @@ class Webhook < ApplicationRecord
   validates :event_type, presence: true
   validates :payload, presence: true
 
+  # A processing claim older than this is treated as abandoned (e.g. the worker was killed).
+  CLAIM_TIMEOUT = 10.minutes
+
   # Status enum
   enum :status, {
     pending: 'pending',
     processing: 'processing',
     completed: 'completed',
-    failed: 'failed'
+    failed: 'failed',
+    ignored: 'ignored' # no handler for the event type
   }, default: :pending
 
   # Scopes
@@ -29,6 +33,29 @@ class Webhook < ApplicationRecord
   def self.stats_by_source
     Rails.cache.fetch('webhook_stats_by_source', expires_in: 5.minutes) do
       group(:source).count
+    end
+  end
+
+  # Terminal statuses: never process again.
+  def finished?
+    completed? || ignored?
+  end
+
+  # Another worker claimed this webhook recently. A nil processing_started_at
+  # (claimed before the column existed) counts as stale.
+  def claim_active?
+    processing? && processing_started_at.present? && processing_started_at > CLAIM_TIMEOUT.ago
+  end
+
+  # Atomically claims the webhook for processing (SELECT ... FOR UPDATE, which also
+  # reloads the row). Returns false if it's finished or another worker holds a live
+  # claim. The lock is held only for this check-and-set; the work happens outside it.
+  def claim_for_processing!
+    with_lock do
+      next false if finished? || claim_active?
+
+      update!(status: :processing, processing_started_at: Time.current)
+      true
     end
   end
 

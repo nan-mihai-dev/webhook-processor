@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_19_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -20,6 +20,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_19_180000) do
     t.string "external_id", null: false
     t.jsonb "payload", default: {}, null: false
     t.datetime "processed_at"
+    t.datetime "processing_started_at"
     t.string "source", null: false
     t.string "status", default: "pending"
     t.datetime "updated_at", null: false
