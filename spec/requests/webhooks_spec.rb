@@ -113,48 +113,54 @@ RSpec.describe 'Webhooks API', type: :request do
       end
     end
 
-    context 'with duplicate external_id' do
-      it 'returns 200 OK without creating duplicate' do
-        # Create original
+    context 'with duplicate deliveries' do
+      def deliver(body)
         post '/webhooks',
-             params: payload,
+             params: body,
              headers: {
                'Content-Type' => 'application/json',
-               'X-Webhook-Signature' => valid_signature
+               'X-Webhook-Signature' => OpenSSL::HMAC.hexdigest('SHA256', secret, body)
              }
-
-        # Send duplicate
-        expect {
-          post '/webhooks',
-               params: payload,
-               headers: {
-                 'Content-Type' => 'application/json',
-                 'X-Webhook-Signature' => valid_signature
-               }
-        }.not_to change(Webhook, :count)
-
-        expect(response).to have_http_status(:ok)
       end
 
-      it 'returns duplicate message' do
-        # Create original
-        post '/webhooks',
-             params: payload,
-             headers: {
-               'Content-Type' => 'application/json',
-               'X-Webhook-Signature' => valid_signature
-             }
+      it 'returns 200 duplicate with the original id and creates no second row' do
+        deliver(payload)
+        original_id = JSON.parse(response.body)['webhook_id']
 
-        # Send duplicate
-        post '/webhooks',
-             params: payload,
-             headers: {
-               'Content-Type' => 'application/json',
-               'X-Webhook-Signature' => valid_signature
-             }
+        expect { deliver(payload) }.not_to change(Webhook, :count)
 
+        expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
-        expect(json['message']).to include('Duplicate')
+        expect(json['status']).to eq('duplicate')
+        expect(json['webhook_id']).to eq(original_id)
+      end
+
+      it 'returns 200 duplicate when a concurrent insert raises RecordNotUnique' do
+        winner = nil
+        allow(Webhook).to receive(:create!) do |attrs|
+          # The concurrent request inserts first; our INSERT then hits the unique index.
+          winner = create(:webhook, attrs)
+          raise ActiveRecord::RecordNotUnique, 'duplicate key value violates unique constraint'
+        end
+
+        deliver(payload)
+
+        expect(response).to have_http_status(:ok)
+        json = JSON.parse(response.body)
+        expect(json['status']).to eq('duplicate')
+        expect(json['webhook_id']).to eq(winner.id)
+        expect(Webhook.count).to eq(1)
+      end
+
+      it 'accepts the same external_id from a different source' do
+        deliver(payload)
+
+        other_source = payload_data.merge(source: 'github').to_json
+        expect { deliver(other_source) }.to change(Webhook, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+        expect(JSON.parse(response.body)['status']).to eq('accepted')
+        expect(Webhook.where(external_id: 'evt_test').pluck(:source)).to contain_exactly('stripe', 'github')
       end
     end
   end

@@ -18,7 +18,7 @@ A webhook ingestion and processing API built with Ruby on Rails 8. Designed arou
 - **HMAC signature validation** — rejects requests with invalid or missing signatures, using a constant-time comparison
 - **JWT authentication** — protects read/management endpoints
 - **Rate limiting** — 100 requests/hour per source, enforced via Redis
-- **Idempotency** — duplicate webhooks (same `external_id`) are detected and skipped
+- **Idempotency** — duplicate deliveries (same `source` + `external_id`) are detected, including concurrent ones, and acknowledged with `200` without being processed twice
 - **Priority queues** — critical events (payments, refunds, disputes) are routed to a dedicated Sidekiq queue
 - **Automatic retries** — failed jobs retry up to 5 times with backoff
 - **Redis caching** — stats endpoints are cached to reduce DB load

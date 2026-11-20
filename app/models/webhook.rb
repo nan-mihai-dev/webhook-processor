@@ -1,7 +1,7 @@
 class Webhook < ApplicationRecord
   after_initialize :set_default_status, if: :new_record?
 
-  validates :external_id, presence: true, uniqueness: true
+  validates :external_id, presence: true, uniqueness: { scope: :source }
   validates :source, presence: true
   validates :event_type, presence: true
   validates :payload, presence: true

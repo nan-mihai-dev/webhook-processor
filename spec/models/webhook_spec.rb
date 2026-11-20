@@ -13,11 +13,17 @@ RSpec.describe Webhook, type: :model do
       expect(webhook.errors[:external_id]).to include("can't be blank")
     end
 
-    it 'requires unique external_id' do
-      create(:webhook, external_id: 'evt_duplicate')
-      duplicate = build(:webhook, external_id: 'evt_duplicate')
+    it 'requires external_id to be unique within a source' do
+      create(:webhook, source: 'stripe', external_id: 'evt_duplicate')
+      duplicate = build(:webhook, source: 'stripe', external_id: 'evt_duplicate')
       expect(duplicate).not_to be_valid
       expect(duplicate.errors[:external_id]).to include("has already been taken")
+    end
+
+    it 'allows the same external_id from a different source' do
+      create(:webhook, source: 'stripe', external_id: 'evt_duplicate')
+      other = build(:webhook, source: 'github', external_id: 'evt_duplicate')
+      expect(other).to be_valid
     end
 
   end

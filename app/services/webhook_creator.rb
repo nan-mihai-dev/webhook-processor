@@ -15,29 +15,29 @@ class WebhookCreator
     @event_type = event_type
     @payload = payload
     @errors = []
-    @is_duplicate = false
   end
 
   def call
-    if duplicate?
-      @is_duplicate = true
-      Rails.logger.info "Duplicate webhook: #{@external_id}"
-      return self
-    end
+    existing = find_existing
+    return mark_duplicate(existing) if existing
 
     create_webhook
-    enqueue_job if success?
+    enqueue_job if @webhook
 
     self
   end
 
   def success?
-    @errors.empty? && (@webhook.present? || @is_duplicate)
+    @errors.empty? && (@webhook.present? || duplicate?)
+  end
+
+  def duplicate?
+    @existing.present?
   end
 
   def response
-    if @is_duplicate
-      { status: 'accepted', message: 'Duplicate webhook' }
+    if duplicate?
+      { status: 'duplicate', webhook_id: @existing.id }
     elsif @webhook.present?
       { status: 'accepted', webhook_id: @webhook.id }
     else
@@ -47,8 +47,8 @@ class WebhookCreator
 
   private
 
-  def duplicate?
-    @duplicate ||= Webhook.exists?(external_id: @external_id)
+  def find_existing
+    Webhook.find_by(source: @source, external_id: @external_id)
   end
 
   def create_webhook
@@ -58,9 +58,23 @@ class WebhookCreator
       event_type: @event_type,
       payload: @payload
     )
+  rescue ActiveRecord::RecordNotUnique => e
+    # A concurrent delivery of the same webhook won the race at the unique index.
+    mark_duplicate(find_existing || raise(e))
   rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "Webhook creation failed: #{e.message}"
-    @errors << 'Invalid webhook data'
+    if e.record.errors.of_kind?(:external_id, :taken)
+      # Same race, lost at the uniqueness validation instead of the index.
+      mark_duplicate(find_existing || raise(e))
+    else
+      Rails.logger.error "Webhook creation failed: #{e.message}"
+      @errors << 'Invalid webhook data'
+    end
+  end
+
+  def mark_duplicate(existing)
+    @existing = existing
+    Rails.logger.info "Duplicate webhook source=#{@source} external_id=#{@external_id} existing_id=#{existing.id}"
+    self
   end
 
   def enqueue_job
