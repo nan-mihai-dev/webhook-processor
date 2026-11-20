@@ -6,7 +6,8 @@ gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 
 # Background Jobs & Cache
-gem "sidekiq", '~> 7.0'
+# >= 7.3.10: earlier 7.x allows connection_pool 3, which crashes the scheduled-job poller (retries never re-run)
+gem "sidekiq", "~> 7.3", ">= 7.3.10"
 gem "redis", "~> 5.4"
 
 # Performance
