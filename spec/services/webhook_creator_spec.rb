@@ -46,8 +46,8 @@ RSpec.describe WebhookCreator do
       end
     end
 
-    context 'with duplicate external_id' do
-      before { create(:webhook, external_id: 'evt_123') }
+    context 'with duplicate external_id from the same source' do
+      let!(:existing) { create(:webhook, source: 'stripe', external_id: 'evt_123') }
 
       it 'does not create a new webhook' do
         expect {
@@ -55,19 +55,87 @@ RSpec.describe WebhookCreator do
         }.not_to change(Webhook, :count)
       end
 
-      it 'returns duplicate message' do
+      it 'returns a duplicate response with the existing id' do
         creator = described_class.new(**params).call
 
         expect(creator).to be_success
-        expect(creator.response[:message]).to eq('Duplicate webhook')
+        expect(creator).to be_duplicate
+        expect(creator.response).to eq(status: 'duplicate', webhook_id: existing.id)
       end
 
-      it 'does not enqueue job' do
+      it 'does not enqueue a job' do
+        allow(ProcessCriticalWebhookJob).to receive(:perform_async)
         allow(ProcessWebhookJob).to receive(:perform_async)
 
         described_class.new(**params).call
 
+        expect(ProcessCriticalWebhookJob).not_to have_received(:perform_async)
         expect(ProcessWebhookJob).not_to have_received(:perform_async)
+      end
+
+      it 'logs at info, not error' do
+        allow(Rails.logger).to receive(:info)
+        allow(Rails.logger).to receive(:error)
+
+        described_class.new(**params).call
+
+        expect(Rails.logger).to have_received(:info).with(/Duplicate webhook source=stripe external_id=evt_123 existing_id=#{existing.id}/)
+        expect(Rails.logger).not_to have_received(:error)
+      end
+    end
+
+    context 'with duplicate external_id from a different source' do
+      before { create(:webhook, source: 'github', external_id: 'evt_123') }
+
+      it 'creates a new webhook' do
+        expect {
+          described_class.new(**params).call
+        }.to change(Webhook, :count).by(1)
+      end
+    end
+
+    context 'when a concurrent delivery wins the race' do
+      # Both requests pass the duplicate check; the other one inserts first.
+      let(:winner) { Webhook.find_by!(source: 'stripe', external_id: 'evt_123') }
+
+      before do
+        allow(ProcessCriticalWebhookJob).to receive(:perform_async)
+      end
+
+      it 'treats RecordNotUnique from the unique index as a duplicate' do
+        allow(Webhook).to receive(:create!) do |attrs|
+          create(:webhook, attrs)
+          raise ActiveRecord::RecordNotUnique, 'duplicate key value violates unique constraint'
+        end
+
+        creator = described_class.new(**params).call
+
+        expect(creator).to be_success
+        expect(creator.response).to eq(status: 'duplicate', webhook_id: winner.id)
+        expect(ProcessCriticalWebhookJob).not_to have_received(:perform_async)
+      end
+
+      it 'treats a uniqueness validation failure as a duplicate' do
+        allow(Webhook).to receive(:create!) do |attrs|
+          create(:webhook, attrs)
+          record = Webhook.new(attrs)
+          record.errors.add(:external_id, :taken)
+          raise ActiveRecord::RecordInvalid, record
+        end
+
+        creator = described_class.new(**params).call
+
+        expect(creator).to be_success
+        expect(creator.response).to eq(status: 'duplicate', webhook_id: winner.id)
+        expect(ProcessCriticalWebhookJob).not_to have_received(:perform_async)
+      end
+
+      it 're-raises RecordNotUnique if no existing row can be found' do
+        allow(Webhook).to receive(:create!).and_raise(ActiveRecord::RecordNotUnique)
+
+        expect {
+          described_class.new(**params).call
+        }.to raise_error(ActiveRecord::RecordNotUnique)
       end
     end
 

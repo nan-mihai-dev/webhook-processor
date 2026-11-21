@@ -1,6 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe ProcessWebhookJob, type: :job do
+  it_behaves_like 'a webhook processing job', event_type: 'order.shipped', handler: :process_shipment
+
   let(:webhook) { create(:webhook, event_type: 'test.event') }
 
   describe '#perform' do

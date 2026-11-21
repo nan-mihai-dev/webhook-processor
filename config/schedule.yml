@@ -1,0 +1,7 @@
+# Periodic jobs, loaded by sidekiq-cron when the Sidekiq server starts.
+# Jobs removed from this file are also removed from Redis on the next start.
+stuck_webhook_sweeper:
+  cron: "*/5 * * * *"
+  class: "StuckWebhookSweeperJob"
+  queue: low
+  description: "Re-enqueue webhooks stuck in pending/processing (see Webhook.stuck)"

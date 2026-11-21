@@ -1,14 +1,6 @@
-# Use different Redis databases for different environments
-redis_db = case Rails.env
-           when 'test'
-             1  # Database 1 for tests
-           when 'production'
-             0  # Database 0 for production
-           else
-             2  # Database 2 for development
-           end
-
-redis_url = ENV.fetch("REDIS_URL", "redis://redis:6379/#{redis_db}")
+# Redis URL (and its per-environment DB) is defined once in config/application.rb
+# and overridden for specs in config/environments/test.rb.
+redis_url = Rails.configuration.x.redis_url
 
 Sidekiq.configure_server do |config|
   config.redis = { url: redis_url }

@@ -11,7 +11,8 @@ class WebhooksController < ApplicationController
 
     signature_validator = WebhookSignatureValidator.new(
       payload: request.raw_post,
-      signature: request.headers['X-Webhook-Signature']
+      signature: request.headers['X-Webhook-Signature'],
+      timestamp: request.headers['X-Webhook-Timestamp']
     )
 
     unless signature_validator.call
@@ -80,7 +81,7 @@ class WebhooksController < ApplicationController
     end
 
     webhook.update!(status: :pending, processed_at: nil)
-    ProcessWebhookJob.perform_async(webhook.id)
+    WebhookDispatcher.dispatch(webhook)
 
     render json: { status: 'retrying', webhook_id: webhook.id }, status: :ok
   rescue ActiveRecord::RecordNotFound

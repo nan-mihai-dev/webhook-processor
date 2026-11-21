@@ -17,7 +17,8 @@ module Api
         # Signature verification
         signature_validator = WebhookSignatureValidator.new(
           payload: request.raw_post,
-          signature: request.headers['X-Webhook-Signature']
+          signature: request.headers['X-Webhook-Signature'],
+          timestamp: request.headers['X-Webhook-Timestamp']
         )
 
         unless signature_validator.call
@@ -85,11 +86,7 @@ module Api
 
         webhook.update!(status: :pending, processed_at: nil)
 
-        if WebhookCreator::CRITICAL_EVENT_TYPES.include?(webhook.event_type)
-          ProcessCriticalWebhookJob.perform_async(webhook.id)
-        else
-          ProcessWebhookJob.perform_async(webhook.id)
-        end
+        WebhookDispatcher.dispatch(webhook)
 
         render json: { status: 'retrying', webhook_id: webhook.id }, status: :ok
       rescue ActiveRecord::RecordNotFound

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_12_114619) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -18,13 +18,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_12_114619) do
     t.datetime "created_at", null: false
     t.string "event_type", null: false
     t.string "external_id", null: false
+    t.text "last_error"
     t.jsonb "payload", default: {}, null: false
     t.datetime "processed_at"
+    t.datetime "processing_started_at"
+    t.integer "reenqueue_count", default: 0, null: false
     t.string "source", null: false
     t.string "status", default: "pending"
     t.datetime "updated_at", null: false
     t.index ["created_at"], name: "index_webhooks_on_created_at"
-    t.index ["external_id"], name: "index_webhooks_on_external_id", unique: true
+    t.index ["source", "external_id"], name: "index_webhooks_on_source_and_external_id", unique: true
     t.index ["source"], name: "index_webhooks_on_source"
     t.index ["status"], name: "index_webhooks_on_status"
   end

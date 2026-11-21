@@ -4,17 +4,7 @@ class RateLimiter
 
   def initialize(source)
     @source = source
-
-    redis_db = case Rails.env
-               when 'test'
-                 1
-               when 'production'
-                 0
-               else
-                 2
-               end
-
-    @redis = Redis.new(url: ENV.fetch('REDIS_URL', "redis://redis:6379/#{redis_db}"))
+    @redis = Redis.new(url: Rails.configuration.x.redis_url)
   end
 
   def exceeded?

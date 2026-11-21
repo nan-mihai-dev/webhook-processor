@@ -55,13 +55,13 @@ RSpec.describe "Authenticated Webhook Endpoints", type: :request do
 
     context "with valid token" do
       it "retries webhook" do
-        allow(ProcessWebhookJob).to receive(:perform_async)
+        allow(ProcessCriticalWebhookJob).to receive(:perform_async) # payment.succeeded is critical
 
         post "/webhooks/#{webhook.id}/retry",
              headers: { 'Authorization' => "Bearer #{valid_token}" }
 
         expect(response).to have_http_status(:ok)
-        expect(ProcessWebhookJob).to have_received(:perform_async).with(webhook.id)
+        expect(ProcessCriticalWebhookJob).to have_received(:perform_async).with(webhook.id)
       end
     end
 

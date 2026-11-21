@@ -5,15 +5,15 @@
 ### Webhooks Table
 
 **Indexed columns:**
-- `external_id` (unique) - Fast lookup for duplicate prevention
+- `[source, external_id]` (unique) - Duplicate prevention. Event IDs are only unique per provider, so the same `external_id` from two sources is allowed. The index is the race-safe guarantee: a concurrent duplicate insert raises `RecordNotUnique`, which is handled as a duplicate
 - `source` - Fast filtering by webhook source
 - `status` - Efficient status queries (pending, failed, etc)
 - `created_at` - Chronological ordering
 
 **Query patterns optimized:**
 ```ruby
-# Fast: Uses external_id index
-Webhook.find_by(external_id: 'evt_123')
+# Fast: Uses [source, external_id] unique index
+Webhook.find_by(source: 'stripe', external_id: 'evt_123')
 
 # Fast: Uses status + created_at indexes
 Webhook.where(status: :failed).order(created_at: :desc)

@@ -26,8 +26,12 @@ services:
       - db
       - redis
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/webhook_processor_development
-      REDIS_URL: redis://redis:6379/0
+      # Component vars (not DATABASE_URL/REDIS_URL): Rails lets DATABASE_URL override every
+      # environment, which would point specs run in this container at the dev database.
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      REDIS_HOST: redis
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
 
   web:
@@ -41,8 +45,12 @@ services:
       - db
       - redis
     environment:
-      DATABASE_URL: postgres://postgres:password@db:5432/webhook_processor_development
-      REDIS_URL: redis://redis:6379/0
+      # Component vars (not DATABASE_URL/REDIS_URL): Rails lets DATABASE_URL override every
+      # environment, which would point specs run in this container at the dev database.
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      REDIS_HOST: redis
       WEBHOOK_SECRET: ${WEBHOOK_SECRET}
       API_KEY: ${API_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
